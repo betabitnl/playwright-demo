@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Playwright;
+using Microsoft.Playwright.NUnit;
 using PlaywrightTest1.Helpers;
 using PlaywrightTest1.PageObjects;
 using System;
@@ -9,72 +10,68 @@ using System.Threading.Tasks;
 
 namespace PlaywrightTest1.Init;
 
-public class PlaywrightServiceProvider : IAsyncDisposable
+public class PlaywrightServiceProvider : IWorkerService
 {
-    private ServiceProvider? _serviceProvider;
+    private readonly ServiceProvider _serviceProvider;
+    private IServiceScope _scope;
+    private IServiceProvider _scopedServiceProvider => _scope.ServiceProvider;
 
-    public async Task<T> GetRequiredServiceAsync<T>()
+    public PlaywrightServiceProvider()
     {
-        if (_serviceProvider == null)
-        {
-            await SetupAsync();
-        }
-
-        return _serviceProvider.GetRequiredService<T>();
-    }
-
-    private async Task SetupAsync()
-    {
-        var path = Path.GetDirectoryName(typeof(PlaywrightServiceProvider).Assembly.Location);
-        var configuration = new ConfigurationBuilder()
+        string? path = Path.GetDirectoryName(typeof(PlaywrightServiceProvider).Assembly.Location);
+        IConfigurationRoot configuration = new ConfigurationBuilder()
            .SetBasePath(path)
            .AddJsonFile("appsettings.json")
            .Build();
 
-        var playwright = await Playwright.CreateAsync();
+        _serviceProvider = new ServiceCollection()
+            .AddSingleton<IConfiguration>(configuration)
+            .AddScoped<UrlService>()
+            .AddScoped<ScreenshotTestResult>()
+            .AddScoped<MenuPage>()
+            .AddScoped<MicrosoftPage>()
+            .BuildServiceProvider();
 
-        var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = Convert.ToBoolean(configuration["Headless"]),
-        });
-
-        var stateFileExists = File.Exists("state.json");
-        var browserContext = await browser.NewContextAsync(new BrowserNewContextOptions
-        {
-            StorageStatePath = stateFileExists ? "state.json" : null,
-            ViewportSize = new ViewportSize() { Width = 1920, Height = 1080 }
-        });
-
-        var page = await browserContext.NewPageAsync();
-
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(configuration);
-        services.AddSingleton(browser);
-        services.AddSingleton(browserContext);
-        services.AddSingleton(page);
-        services.AddScoped(x => new UrlService(page, configuration["BaseUrl"]));
-        services.AddScoped<ScreenshotTestResult>();
-        services.AddScoped<MenuPage>();
-        services.AddScoped<MicrosoftPage>();
-
-        _serviceProvider = services.BuildServiceProvider();
+        _scope = _serviceProvider.CreateScope();
     }
 
-    public async ValueTask DisposeAsync()
+    public T IPageObjectGetPageObject<T>(IPage page) where T : IPageObject
     {
-        await DisposeAsyncCore().ConfigureAwait(false);
-        GC.SuppressFinalize(this);
+        T pageObject = _scopedServiceProvider.GetRequiredService<T>();
+        pageObject.SetPage(page);
+        return pageObject;
     }
 
-    protected virtual async ValueTask DisposeAsyncCore()
+    public T GetRequiredService<T>() where T : notnull
     {
-        if (_serviceProvider is not null)
+        if (typeof(T).IsAssignableFrom(typeof(IPageObject)))
         {
-            var browser = await GetRequiredServiceAsync<IBrowser>();
-            await browser.DisposeAsync();
-            await _serviceProvider.DisposeAsync().ConfigureAwait(false);
+            throw new NotSupportedException("Use IPageObjectGetPageObject method when resolving IPageObjects");
         }
+        return GetRequiredServiceInternal<T>();
+    }
 
-        _serviceProvider = null;
+    private T GetRequiredServiceInternal<T>() where T : notnull
+    {
+        return _scopedServiceProvider.GetRequiredService<T>();
+    }
+
+    public static Task<PlaywrightServiceProvider> Register(WorkerAwareTest test)
+    {
+        return test.RegisterService("ServiceProvider", () => Task.FromResult(new PlaywrightServiceProvider()));
+    }
+
+    public async Task DisposeAsync()
+    {
+        _scope.Dispose();
+        await _serviceProvider.DisposeAsync().ConfigureAwait(false);
+    }
+
+    public Task ResetAsync()
+    {
+        _scope.Dispose();
+        _scope = _serviceProvider.CreateScope();
+
+        return Task.CompletedTask;
     }
 }

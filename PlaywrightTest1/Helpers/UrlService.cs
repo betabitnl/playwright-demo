@@ -1,4 +1,5 @@
-﻿using Microsoft.Playwright;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Playwright;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -6,17 +7,15 @@ namespace PlaywrightTest1.Helpers;
 
 public class UrlService
 {
-    private readonly IPage _page;
     private readonly string _baseUrl;
 
-    public UrlService(IPage page, string baseUrl)
+    public UrlService(IConfiguration configuration)
     {
-        _page = page;
-        _baseUrl = baseUrl;
+        _baseUrl = configuration["BaseUrl"];
     }
 
-    public async Task NavigateTo(string urlExtension = "")
+    public async Task NavigateTo(IPage page, string urlExtension = "")
     {
-        await _page.GotoAsync(Path.Combine(_baseUrl, urlExtension), new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        await page.GotoAsync(Path.Combine(_baseUrl, urlExtension), new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
     }
 }
