@@ -7,7 +7,7 @@
 		<BrowserName>chromium</BrowserName>
 		<ExpectTimeout>5000</ExpectTimeout>
 		<LaunchOptions>
-			<Headless>false</Headless>
+			<Headless>true</Headless>
 			<!--Usefull to see what is going on during a test -->
 			<!--Setting slows down every action by provided miliseconds. -->
 			<!--<SlowMo>1000</SlowMo>-->
