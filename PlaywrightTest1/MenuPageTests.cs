@@ -1,4 +1,3 @@
-using Microsoft.Playwright;
 using Microsoft.Playwright.NUnit;
 using NUnit.Framework;
 using PlaywrightTest1.Helpers;
@@ -13,58 +12,47 @@ namespace PlaywrightTest1;
 public class MenuPageTests : PageTest
 {
     private PlaywrightServiceProvider _playwrightServiceProvider;
-    private IPage _page;
-    private ScreenshotTestResult _screenshotTestResult;
-    private UrlService _urlService;
-    private MenuPage _menu;
 
-    [OneTimeSetUp]
+    [SetUp]
     public async Task OneTimeSetUp()
     {
-        _playwrightServiceProvider = new PlaywrightServiceProvider();
-        _page = await _playwrightServiceProvider.GetRequiredServiceAsync<IPage>();
-        _screenshotTestResult = await _playwrightServiceProvider.GetRequiredServiceAsync<ScreenshotTestResult>();
-        _urlService = await _playwrightServiceProvider.GetRequiredServiceAsync<UrlService>();
-        _menu = await _playwrightServiceProvider.GetRequiredServiceAsync<MenuPage>();
-    }
-
-    [OneTimeTearDown]
-    public async Task OneTimeTearDown()
-    {
-        await _playwrightServiceProvider.DisposeAsync();
+        _playwrightServiceProvider = await PlaywrightServiceProvider.Register(this);
     }
 
     [TearDown]
     public async Task TearDown()
     {
-        await _screenshotTestResult.AttachToTestContextWhenFailedAsync();
+        await _playwrightServiceProvider.GetRequiredService<ScreenshotTestResult>()
+            .AttachToTestContextWhenFailedAsync(Page);
     }
 
     [Test]
     public async Task NavigationToKennis()
     {
-        await _urlService.NavigateTo();
+        MenuPage menuPageObject = _playwrightServiceProvider.IPageObjectGetPageObject<MenuPage>(Page);
+        await menuPageObject.OpenAsync();
 
-        var expectedUrlEnd = new Regex(@".*\/kennis");
+        Regex expectedUrlEnd = new Regex(@".*\/kennis");
 
-        await Expect(_page).Not.ToHaveURLAsync(expectedUrlEnd);
+        await Expect(Page).Not.ToHaveURLAsync(expectedUrlEnd);
 
-        await _menu.Kennis.ClickAsync();
+        await menuPageObject.Kennis.ClickAsync();
 
-        await Expect(_page).ToHaveURLAsync(expectedUrlEnd);
+        await Expect(Page).ToHaveURLAsync(expectedUrlEnd);
     }
 
     [Test]
     public async Task NavigationToWerkenBij()
     {
-        await _urlService.NavigateTo();
+        MenuPage menuPageObject = _playwrightServiceProvider.IPageObjectGetPageObject<MenuPage>(Page);
+        await menuPageObject.OpenAsync();
 
-        var expectedUrlEnd = new Regex(@".*\/werken-bij");
+        Regex expectedUrlEnd = new Regex(@".*\/werken-bij");
 
-        await Expect(_page).Not.ToHaveURLAsync(expectedUrlEnd);
+        await Expect(Page).Not.ToHaveURLAsync(expectedUrlEnd);
 
-        await _menu.WerkenBij.ClickAsync();
+        await menuPageObject.WerkenBij.ClickAsync();
 
-        await Expect(_page).ToHaveURLAsync(expectedUrlEnd);
+        await Expect(Page).ToHaveURLAsync(expectedUrlEnd);
     }
 }

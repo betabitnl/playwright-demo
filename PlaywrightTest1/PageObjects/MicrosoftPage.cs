@@ -4,12 +4,9 @@ using System.Threading.Tasks;
 
 namespace PlaywrightTest1.PageObjects;
 
-public class MicrosoftPage
+public class MicrosoftPage : BasePageObject, IPageObject
 {
-    private readonly IPage _page;
-    private readonly UrlService _urlService;
-
-    public ILocator LeaveMessage => _page.Locator("a[href='#contact-form-0']").First;
+    public ILocator LeaveMessage => _page.Locator("a[href^='#contact-form-']").First;
     public ILocator Name => _page.Locator("input[placeholder='Jouw naam']");
     public ILocator TelephoneNumber => _page.Locator("input[placeholder='Jouw telefoonnummer']");
     public ILocator EmailAdress => _page.Locator("input[placeholder='Jouw e-mailadres']");
@@ -17,14 +14,12 @@ public class MicrosoftPage
     public ILocator FormErrorMessages => _page.Locator(".field-validation-error");
     public ILocator SendButton => _page.Locator("button[title='Verzenden']");
 
-    public MicrosoftPage(IPage page, UrlService urlService)
-    {
-        _page = page;
-        _urlService = urlService;
-    }
+    public MicrosoftPage(UrlService urlService)
+        : base(urlService)
+    { }
 
-    public async Task OpenAsync()
+    public override async Task OpenAsync()
     {
-        await _urlService.NavigateTo("microsoft");
+        await Navigate("microsoft");
     }
 }
